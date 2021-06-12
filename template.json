@@ -1,0 +1,48 @@
+{
+  "variables": {
+    "artifactory_url": "",
+    "source_docker_repo": "docker-remote",
+    "target_docker_repo": "docker-local",
+    "base_image": "python:3",
+    "script": "test.py",
+    "script_args": "[\"--foo\", \"--bar\"]",
+    "project_name": "test"
+  },
+  "builders": [
+    {
+      "type": "docker",
+      "image": "{{user `artifactory_url`}}/{{user `source_docker_repo`}}/{{user `base_image`}}",
+      "commit": true,
+      "run_command": ["-d", "-i", "-t", "--", "{{.Image}}"],
+      "changes": [
+        "WORKDIR /usr/src/{{user `project_name`}}",
+        "ENTRYPOINT [ \"python\", \"{{user `script`}}\" ]",
+        "CMD {{user `script_args`}}"
+      ]
+    }
+  ],
+  "provisioners": [
+    {
+      "type": "file",
+      "source": "files",
+      "destination": "/tmp/files"
+    },
+    {
+      "type": "shell",
+      "script": "provision.sh",
+      "environment_vars": ["PROJECT_NAME={{user `project_name`}}"]
+    }
+  ],
+  "post-processors": [
+    [
+      {
+        "type": "docker-tag",
+        "repository": "{{user `artifactory_url`}}/{{user `target_docker_repo`}}/{{user `project_name`}}",
+        "tags": "latest"
+      },
+      {
+        "type": "docker-push"
+      }
+    ]
+  ]
+}
